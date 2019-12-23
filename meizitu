@@ -1,0 +1,76 @@
+import requests
+import bs4
+from bs4 import BeautifulSoup
+import os
+import time
+
+start = time.time()
+os.chdir('D:/Python/SPADER/')
+#设置默认路径
+headers = {
+        'Referer':'https://www.mzitu.com/',
+        'User-Agent':'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.92 Safari/537.36'
+        }
+#设置头部，防止反爬
+
+def get_url():
+    for i in range(1,219):
+        yield 'https://www.mzitu.com/page/{}/'.format(i)
+#获取页面url链接["https://www.mzitu.com/page/{}/".format(str(i))for i in range(10)]
+
+def get_html(url):
+    try:
+        r = requests.get(url,headers=headers)
+        r.enconding = r.apparent_encoding
+        return r
+    except Exception as err:
+        print(err)
+#创建函数获取HTML函数
+
+imgs=[]
+def get_href(url):
+    res = get_html(url)
+    soup = BeautifulSoup(res.text,'html.parser')
+    a = soup.select('div.postlist ul#pins li a')
+    for i in a:
+        if i['href'] not in imgs:
+            imgs.append(i['href'])
+        else:
+            continue
+            
+for j in get_url():
+    get_href(j)
+#将所有的url存入imgs
+for img in imgs:
+    res = get_html(img).text
+    soup = BeautifulSoup(res,'html.parser')
+    count = soup.select('div.content div.pagenavi a')[-2].string
+    for c in range(1,int(count)+1):
+        url = img + '/' + str(c)
+        respon = get_html(url)
+        soup1 = BeautifulSoup(respon.text,'html.parser')
+        for src in soup1.select('div.main-image p a img'):
+            src=src['src']
+            file = url.split('/')[-2]
+            header = {
+                        'Referer':url,
+                        'User-Agent':'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.92 Safari/537.36'
+                        }
+            conten = requests.get(src,headers=header)
+            isExists = os.path.exists(file)
+            # 判断结果
+            if not isExists:
+                # 如果不存在则创建目录
+                # 创建目录操作函数
+                os.makedirs(file)
+            path = src.split('/')[-1]
+            with open(file+'/'+path, 'wb') as f:
+                f.write(conten.content)
+                f.close()
+                print(src)
+                time.sleep(0.3)
+
+
+end = time.time()
+spend = end-start
+print('共花费{:.2f}秒'.format(spend))
