@@ -1,0 +1,189 @@
+# -*- coding: utf-8 -*-
+"""
+政企日报
+"""
+from selenium import webdriver
+import time,random,os
+#from selenium.webdriver import ActionChains
+import warnings
+warnings.filterwarnings('ignore') 
+import pandas as pd
+import datetime
+
+zq_data=['政企-2017-18732','政企-2017-22787','政企-2018-9305','政企-2018-13006', '政企-2018-17656',\
+         '政企-2019-970','政企-2019-1968']
+sj_data=['数据-2019-1382','数据-2019-2900','数据-2019-6090','数据-2019-6228','数据-2019-5421',\
+         '数据-2019-5747','数据-2019-4794','数据-2019-9699','数据-2019-10518','数据-2019-12798',\
+         '数据-2019-12902','数据-2019-8737','数据-2019-10775','数据-2019-11954','数据-2019-13611',\
+         '数据-2019-14643','数据-2019-15909','数据-2019-1906','数据-2019-4599','数据-2019-6559',\
+         '数据-2019-7552','数据-2019-4502','数据-2019-7956','数据-2019-941']
+
+driver = webdriver.Chrome()
+def alter_time(form,t):
+    # 去掉元素的readonly属性
+    js = "document.getElementById('%s').removeAttribute('readonly');"%form
+    driver.execute_script(js)
+    time.sleep(3)
+    # 用js方法输入日期
+    js_value = "document.getElementById('%s').value='%s'"%(form,t)
+    driver.execute_script(js_value)
+
+def drop_data(df,name):
+    df.drop(name,inplace=True)
+
+def main():
+    driver.get('http://iimp.sh.cmcc/rip/login.do')
+    user = driver.find_element_by_id('j_username')
+    user.send_keys('xdl_zhouyanling')
+    pwd = driver.find_element_by_id('j_password')
+    pwd.send_keys('1q2w3e4r@')
+    
+    time.sleep(random.randint(1,5))
+    code = input('请输入验证码：')
+    code_input = driver.find_element_by_id('code')
+    code_input.clear()
+    code_input.send_keys(code)
+    log_in = driver.find_element_by_class_name('btn1_mouseout')
+    log_in.click()
+    
+    #ActionChains(driver).move_to_element(report).perform() 
+    #鼠标悬停
+    
+    #driver.execute_script("arguments[0].scrollIntoView();", report2).click()
+    #执行js，使滚动条下滑至要定位的元素位置
+    report_list=[]
+    for link in driver.find_elements_by_xpath("//*[@id='sf-menu2']/li/a"):
+        herf = link.get_attribute('href')
+        text = link.get_attribute('text')
+        lis1=[text,herf]
+        report_list.append(lis1)
+    report_list=dict(report_list)
+    
+    driver.get(report_list['PATCH计划'])
+    driver.implicitly_wait(10)
+    alter_time('planTimeStart','2019-01-01')
+    alter_time('planTimeEnd','2020-04-30')
+    
+    '''            以上更改数据                  '''
+    
+    
+    driver.find_element_by_xpath('//*[@id="bd"]/div/div[2]/table/tbody/tr/td/table/tbody/tr[10]/td/input[2]').click()
+    driver.implicitly_wait(60)
+    #导出报表
+    driver.get(report_list['政企业务需求报表'])
+    driver.find_element_by_xpath('//*[@id="bd"]/div[1]/div[2]/table/tbody/tr/td/table/tbody/tr/td/input').click()
+    driver.implicitly_wait(30)
+    #driver.get(report_list['政企KPI追踪报表'])
+    #driver.find_element_by_xpath('//*[@id="bd"]/div[1]/div[2]/table/tbody/tr/td/table/tbody/tr/td/input').click()
+    #driver.implicitly_wait(30)
+    
+    #处理数据
+    time.sleep(3)
+    data1 = pd.read_excel(r'C:\Users\lenovo\Downloads\政企业务需求报表.xls')
+    data2 = pd.read_excel(r'C:\Users\lenovo\Downloads\PATCH计划2.xls')
+    
+    df1 = data1.copy()
+    df1.index = df1['工单编号']
+    df1.sort_values(by=['工单编号','上线时间'],inplace=True,ascending=True)
+    df1['外部工时'][df1['是否重复']=='是'] = df1[df1['是否重复']=='是']['外部工时']/2
+    
+    for i in zq_data:
+        drop_data(df1,i)
+    #删除指定的行
+        
+    df1.loc['政企-2018-1972','上线时间']='2018-04-24'
+    df1.loc['政企-2018-2154','上线时间']='2018-03-30'
+    df1.loc['政企-2018-5293','创建时间']='2018-06-12'
+    df1.loc['政企-2018-5690','创建时间']='2018-06-12'
+    df1.loc['政企-2018-9291','创建时间']='2018-06-28'
+    df1.loc['政企-2018-8270','创建时间']='2018-07-19'
+    df1.loc['政企-2018-17305','创建时间']='2019-01-21'
+    df1.loc['政企-2019-3695','到达时间']='2019-04-19'
+    df1.loc['政企-2019-9412','上线时间']='2019-08-13'
+    df1.loc['政企-2019-9094','上线时间']='2019-08-06'
+    df1.loc['政企-2019-8899','上线时间']='2019-08-15'
+    #修改时间
+    
+    df1['需求确认'] = pd.to_datetime(df1['需求确认'])#,format='%Y-%m-%d')
+    df1['到达时间'] = pd.to_datetime(df1['到达时间'])
+    df1['上线时间'] = pd.to_datetime(df1['上线时间'])
+    lst = df1[df1['到达时间'].isnull()].工单编号.unique().tolist()
+    print(lst)
+    for i in lst:
+        df1.loc[i]['到达时间'] = df1.loc[i]['需求确认'] - datetime.timedelta(2)
+    df1.loc['政企-2018-17184','到达时间'] = pd.to_datetime('2018-12-08') 
+    #去除时间段的空白值
+    df1['需求确认']=df1['需求确认'].apply(lambda x:x.strftime('%Y-%m-%d'))
+    df1['到达时间']=df1['到达时间'].apply(lambda x:x.strftime('%Y-%m-%d'))
+    df1['上线时间']=df1['上线时间'].apply(lambda x:x.strftime('%Y-%m-%d'))
+    #修改时间为年-月-日  去除时分秒
+    
+    df2 = data2.copy()
+    df2.index = df2['工单编号']
+    df2['计划上线时间'] = pd.to_datetime(df2['计划上线时间'])
+    df2.sort_values(by='计划上线时间',inplace=True,ascending=True)
+    df2 = df2.groupby('工单编号').last()
+    df2['计划上线时间']=df2['计划上线时间'].apply(lambda x:x.strftime('%Y-%m-%d'))
+    
+    '''
+    ↑筛选出最后一次上线的工单
+    a1 = df2.groupby('工单编号').apply(lambda t:t[t.计划上线时间==t.计划上线时间.max()])
+    通过工单编号分组，选择计划上线时间最大的工单（有重复）
+
+    def choice(df,t):
+        df.str.contains(t)
+    df2=df2[choice(df2['提出部门'],'数据业务中心')]
+    '''
+    df2 = df2[df2['提出部门'].str.contains('数据业务中心')]
+    #筛选出提出部门为 '数据业务中心' 的工单
+    df2 = df2[df2['需求负责人'].str.contains('卞一茗')|df2['需求负责人'].str.contains('黄杨')|
+            df2['需求负责人'].str.contains('贾正皓')|df2['需求负责人'].str.contains('金斌')|
+            df2['需求负责人'].str.contains('刘睿')|df2['需求负责人'].str.contains('宋子腾')|
+            df2['需求负责人'].str.contains('汪铃凯')|df2['需求负责人'].str.contains('武一迪')|
+            df2['需求负责人'].str.contains('唐雅丽')|df2['需求负责人'].str.contains('虞黎')|
+            df2['需求负责人'].str.contains('张雨胜')|df2['需求负责人'].str.contains('朱丽吉')|
+            df2['需求负责人'].str.contains('郭林容')]
+    #筛选出指定需求负责人的工单
+   
+    
+    for i in sj_data:
+        drop_data(df2,i)
+    #删除指定的行
+    
+    print('数据已经处理完成，正在导出中……')
+    
+    df2['工单编号']=df2.index
+    data3 = pd.read_excel(r'D:\360MoveData\Users\lenovo\Music\Desktop\svn\政企KPI日报.xlsx')
+    data3.index=data3['工单编号']
+    
+    a = data3[data3.index.str.contains('数据')][['需求确认','到达时间']]
+    a['需求确认'] = pd.to_datetime(a['需求确认'])
+    a['到达时间'] = pd.to_datetime(a['到达时间'])
+    a['需求确认']=a['需求确认'].apply(lambda x:x.strftime('%Y-%m-%d'))
+    a['到达时间']=a['到达时间'].apply(lambda x:x.strftime('%Y-%m-%d'))
+    
+    df2 = pd.merge(df2,a,left_index=True,right_index=True,how='left')
+    concat2 = df2[['工单编号','工单名称','工单简介','创建人','需求负责人','创建时间','需求确认','计划上线时间','到达时间']]
+    concat2.rename(columns={'计划上线时间':'上线时间','工单简介':'简介'},inplace=True)
+    
+    df = pd.concat([df1,concat2])
+    df=df[['工单编号', '工单名称', '简介', '创建人', '需求负责人', '创建时间', '需求确认', '上线时间', '到达时间',
+           '期望上线时间', '需求期望上线时间', '到达总控时间', '一级总控拆分', '来源部门', '工单大类', '工单类型',
+           '一级业务标签', '二级业务标签', '一级指标库标签', '二级指标库标签', '三级指标库标签', '上线次数', '外部工时',
+           '是否重复']]
+
+    os.chdir(r'D:\360MoveData\Users\lenovo\Music\Desktop')
+    shet = pd.ExcelWriter('政企KPI日报.xlsx')
+    df.to_excel(shet,sheet_name='政企KPI报表',index=False)
+    df1.to_excel(shet,sheet_name='政企需求表')
+    df2.to_excel(shet,sheet_name='patch计划表')
+    shet.close()
+    #导出数据
+    
+    print('本次政企据共%i条'%len(df1))
+    print('本次数据共%i条'%len(df2))
+    print('本次政企日报数据共%i条'%len(df))
+    print('\n在'+time.strftime('%Y-%m-%d %H:%M:%S',time.localtime())+'分，导出处理后数据')
+
+if __name__=='__main__':
+    main()
