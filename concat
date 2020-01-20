@@ -1,0 +1,19 @@
+import pandas as pd
+import os
+
+'''更改路径即可合并路径下的所有表格,注意sheet_name'''
+path = r'D:\360MoveData\Users\lenovo\Music\Desktop\svn\cancat'
+a=os.walk(path)
+n=0
+for i in list(a)[0][2]:
+    print(i)
+    if n==0:
+        data=pd.read_excel(path+'/'+i)
+        n+=1
+    else:
+        data1=pd.read_excel(path+'/'+i)
+        data=pd.concat([data,data1])
+        n+=1
+print('本次共合并%i张表'%n)
+
+data.to_excel('D:\\合并表.xlsx',index=False)
