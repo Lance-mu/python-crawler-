@@ -34,9 +34,9 @@ def drop_data(df,name):
 def main():
     driver.get('http://iimp.sh.cmcc/rip/login.do')
     user = driver.find_element_by_id('j_username')
-    user.send_keys('输入zhang'hao')
+    user.send_keys('此处输入账号')
     pwd = driver.find_element_by_id('j_password')
-    pwd.send_keys('1q2w3e4r@')
+    pwd.send_keys('此处输入密码')
     
     time.sleep(random.randint(1,5))
     code = input('请输入验证码：')
